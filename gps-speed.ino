@@ -1,0 +1,67 @@
+#include <TinyGPS++.h>
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiWire.h"
+
+static const int RXPin = 4, TXPin = 3;
+
+// GPS RX -> D3
+// GPS TX -> D4
+
+// SCREEN SDA - A4
+// SCREEN SCL - A5
+
+
+static const uint32_t GPSBaud = 9600;
+
+// The TinyGPS++ object
+TinyGPSPlus gps;
+
+// The serial connection to the GPS device
+SoftwareSerial ss(RXPin, TXPin);
+
+// For stats that happen every 5 seconds
+unsigned long last = 0UL;
+
+// 0X3C+SA0 - 0x3C or 0x3D
+#define I2C_ADDRESS 0x3C
+
+// Define proper RST_PIN if required.
+#define RST_PIN -1
+
+SSD1306AsciiWire oled;
+
+void setup()
+{
+  Serial.begin(115200);
+  ss.begin(GPSBaud);
+  Wire.begin();
+    Wire.setClock(400000L);
+
+#if RST_PIN >= 0
+    oled.begin(&Adafruit128x32, I2C_ADDRESS, RST_PIN);
+#else // RST_PIN >= 0
+    oled.begin(&Adafruit128x32, I2C_ADDRESS);
+#endif // RST_PIN >= 0
+    oled.setFont(font5x7);
+    oled.setCursor(10, 2);
+    oled.println("GPS");
+    delay(4000);
+    oled.set2X();
+    oled.clear();
+}
+
+void loop()
+{
+  // Dispatch incoming characters
+  while (ss.available() > 0)
+    gps.encode(ss.read());
+
+  if (millis() - last > 5000)
+  {
+    last = millis();
+    oled.setCursor(2, 1);   
+    oled.println(String(gps.speed.kmph()) + " km/h");
+  }
+}
